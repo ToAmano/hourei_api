@@ -1,12 +1,15 @@
+from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import Dict, Literal, Optional
+from typing import Dict, List, Literal, Optional, Type
 from xml.etree import ElementTree
 
 import requests
 
 
 @lru_cache
-def get_lawid_from_lawtitle(law_title: str) -> str:
+def get_lawid_from_lawtitle(
+    law_title: str, *, if_exact: bool = True
+) -> str | Dict[str, str]:
     """APIから法令タイトルでヒットする法令IDを取得(完全一致のみ)"""
     url = "https://laws.e-gov.go.jp/api/2/laws"
     r = requests.get(url, params={"response_format": "xml", "law_title": law_title})
@@ -36,7 +39,9 @@ def get_lawid_from_lawtitle(law_title: str) -> str:
         print(f"ID: {law_id}, Num: {law_num}, Title: {lawtitle}")
         law_dict[lawtitle] = law_id
     print(f"Number of laws: {counter}")
-    return law_dict[law_title]  # allow exact match
+    if if_exact:
+        return law_dict[law_title]  # allow exact match
+    return law_dict  # return all matches
 
 
 def get_lawdata_from_law_id(law_id: str, output_type: Literal["xml", "list"]):
@@ -207,7 +212,300 @@ def parse_mainprovision_to_text(xml: str):
     return "\n".join(lines)
 
 
+def parse_mainprovision_to_text_v2(xml: str):
+    """法令XMLのMainProvisionを処理してテキストに変換する"""
+
+    def get_ruby_text(element):
+        # <Ruby>漢字<Rt>読み</Rt></Ruby> → 漢字（読み）
+        base = "".join(element.itertext())
+        rt = element.find("Rt")
+        if rt is not None and element.text:
+            return f"{element.text}（{rt.text}）"
+        return base
+
+    root = ElementTree.fromstring(xml)
+    lines = []
+
+    for article in root.findall("Article"):
+        # 記事タイトル
+        article_title = article.findtext("ArticleTitle")
+        if article_title:
+            lines.append(article_title.strip())
+
+        # 段落ごとの処理
+        for para in article.findall("Paragraph"):
+            para_num = para.findtext("ParagraphNum")
+            if para_num:
+                lines.append(para_num.strip())
+
+            # 本文の文を処理
+            para_sentence = para.find("ParagraphSentence")
+            if para_sentence is not None:
+                for sentence in para_sentence.findall("Sentence"):
+                    sentence_text = ""
+                    for elem in sentence.iter():
+                        if elem.tag == "Ruby":
+                            sentence_text += get_ruby_text(elem)
+                        elif elem.text:
+                            sentence_text += elem.text
+                    lines.append(sentence_text.strip())
+
+            # 項目（Item）の処理
+            for item in para.findall("Item"):
+                item_title = item.findtext("ItemTitle")
+                if item_title:
+                    lines.append(item_title.strip())
+
+                item_sentence = item.find("ItemSentence")
+                if item_sentence is not None:
+                    for column in item_sentence.findall("Column"):
+                        for sentence in column.findall("Sentence"):
+                            sentence_text = ""
+                            for elem in sentence.iter():
+                                if elem.tag == "Ruby":
+                                    sentence_text += get_ruby_text(elem)
+                                elif elem.text:
+                                    sentence_text += elem.text
+                            lines.append(sentence_text.strip())
+
+    return "\n".join(lines)
+
+
+class BaseLawParser(ABC):
+    """法令XMLパーサーの基底クラス"""
+
+    def __init__(self, xml: str):
+        self.root = ElementTree.fromstring(xml)
+        self.lines: List[str] = []
+
+    def parse(self) -> str:
+        """XMLをテキストに変換する（Template Method）"""
+        self._setup()
+        self._process_top_level_elements()
+        return self._finalize()
+
+    def _setup(self) -> None:
+        """初期化処理"""
+        self.lines.clear()
+
+    def _finalize(self) -> str:
+        """最終処理"""
+        return "\n".join(self.lines)
+
+    @abstractmethod
+    def _process_top_level_elements(self) -> None:
+        """トップレベル要素を処理する（子クラスで実装）"""
+        pass
+
+    def _process_section(self, section) -> None:
+        """節を処理する"""
+        section_title = section.findtext("SectionTitle")
+        if section_title:
+            self._add_line(section_title)
+            self._add_blank_line()
+
+        for article in section.findall("Article"):
+            self._process_article(article)
+
+    def _process_article(self, article) -> None:
+        """条を処理する"""
+        self._add_optional_text(article.findtext("ArticleCaption"))
+        self._add_optional_text(article.findtext("ArticleTitle"))
+
+        for paragraph in article.findall("Paragraph"):
+            self._process_paragraph(paragraph)
+
+    def _process_paragraph(self, paragraph) -> None:
+        """項を処理する"""
+        self._add_optional_text(paragraph.findtext("ParagraphNum"))
+
+        # 段落の文を処理
+        paragraph_sentence = paragraph.find("ParagraphSentence")
+        if paragraph_sentence is not None:
+            self._process_sentences(paragraph_sentence)
+
+        # 項目を処理
+        for item in paragraph.findall("Item"):
+            self._process_item(item)
+
+    def _process_item(self, item) -> None:
+        """項目を処理する（子クラスでオーバーライド可能）"""
+        self._add_optional_text(item.findtext("ItemTitle"))
+
+        item_sentence = item.find("ItemSentence")
+        if item_sentence is not None:
+            self._process_item_sentence(item_sentence)
+
+        # Subitem1要素を処理（再帰的にネストされたSubitemも処理）
+        for subitem in item.findall("Subitem1"):
+            self._process_subitem(subitem)
+
+    def _process_item_sentence(self, item_sentence) -> None:
+        """ItemSentenceを処理する（基本実装、子クラスでオーバーライド可能）"""
+        self._process_sentences(item_sentence)
+
+    def _process_subitem(self, subitem) -> None:
+        """サブ項目を処理する（再帰的にネストされたSubitemを処理）"""
+        # Subitemのレベルを動的に判定
+        tag_name = subitem.tag
+        level = self._extract_subitem_level(tag_name)
+        print(f"Processing {tag_name} at level {level}")
+
+        # タイトルを処理
+        title_tag = f"{tag_name}Title"
+        self._add_optional_text(subitem.findtext(title_tag))
+
+        # 文章を処理
+        sentence_tag = f"{tag_name}Sentence"
+        subitem_sentence = subitem.find(sentence_tag)
+        if subitem_sentence is not None:
+            self._process_sentences(subitem_sentence)
+
+        # 次のレベルのSubitemを再帰的に処理
+        next_level = level + 1
+        next_subitem_tag = f"Subitem{next_level}"
+        for next_subitem in subitem.findall(next_subitem_tag):
+            self._process_subitem(next_subitem)
+
+    def _extract_subitem_level(self, tag_name: str) -> int:
+        """SubitemタグからレベルNumberを抽出する（例: "Subitem1" → 1）"""
+        import re
+
+        match = re.search(r"Subitem(\d+)", tag_name)
+        return int(match.group(1)) if match else 1
+
+    def _process_sentences(self, sentence_container) -> None:
+        """文のコンテナを処理する"""
+        for sentence in sentence_container.findall(".//Sentence"):
+            sentence_text = self._extract_sentence_text(sentence)
+            if sentence_text:
+                self._add_line(sentence_text)
+
+    def _extract_sentence_text(self, sentence) -> str:
+        """文要素からテキストを抽出する"""
+        parts = []
+
+        for elem in sentence.iter():
+            if elem.tag == "Ruby":
+                parts.append(self._get_ruby_text(elem))
+            elif elem.text:
+                parts.append(elem.text)
+
+        return "".join(parts).strip()
+
+    def _get_ruby_text(self, element) -> str:
+        """ルビ要素を処理する: <Ruby>漢字<Rt>読み</Rt></Ruby> → 漢字（読み）"""
+        rt_element = element.find("Rt")
+        if rt_element is not None and element.text:
+            return f"{element.text}（{rt_element.text}）"
+
+        # フォールバック: 全てのテキストを結合
+        return "".join(element.itertext())
+
+    def _add_optional_text(self, text: Optional[str]) -> None:
+        """テキストがある場合のみ行に追加する"""
+        if text:
+            self._add_line(text)
+
+    def _add_line(self, text: str) -> None:
+        """行を追加する（空白をトリム）"""
+        self.lines.append(text.strip())
+
+    def _add_blank_line(self) -> None:
+        """空行を追加する"""
+        self.lines.append("")
+
+
+class ChapterBasedParser(BaseLawParser):
+    """Chapter構造の法令XMLパーサー"""
+
+    def _process_top_level_elements(self) -> None:
+        """Chapterから処理を開始する"""
+        for chapter in self.root.findall("Chapter"):
+            self._process_chapter(chapter)
+
+    def _process_chapter(self, chapter) -> None:
+        """章を処理する"""
+        chapter_title = chapter.findtext("ChapterTitle")
+        if chapter_title:
+            self._add_line(chapter_title)
+            self._add_blank_line()
+
+        # Chapter直下の全ての子要素を順番通りに処理
+        for child in chapter:
+            if child.tag == "Section":
+                self._process_section(child)
+            elif child.tag == "Article":
+                self._process_article(child)
+
+        # for article in chapter.findall("Article"):
+        #     self._process_article(article)
+
+
+class ArticleBasedParser(BaseLawParser):
+    """Article構造の法令XMLパーサー"""
+
+    def _process_top_level_elements(self) -> None:
+        """Articleから処理を開始する"""
+        for article in self.root.findall("Article"):
+            self._process_article(article)
+
+    def _process_item_sentence(self, item_sentence) -> None:
+        """ItemSentenceを処理する（Column要素対応版）"""
+        # Column要素がある場合はColumn経由で処理
+        columns = item_sentence.findall("Column")
+        if columns:
+            for column in columns:
+                self._process_sentences(column)
+        else:
+            # Column要素がない場合は直接処理
+            self._process_sentences(item_sentence)
+
+
+class LawXmlParser:
+    """法令XMLパーサーのファクトリクラス"""
+
+    @staticmethod
+    def _detect_parser_type(xml: str) -> Type[BaseLawParser]:
+        """XMLの構造を検出して適切なパーサータイプを返す"""
+        try:
+            root = ElementTree.fromstring(xml)
+
+            # Chapter要素があるかチェック
+            if root.find("Chapter") is not None:
+                return ChapterBasedParser
+            # Article要素があるかチェック
+            elif root.find("Article") is not None:
+                return ArticleBasedParser
+            else:
+                raise ValueError(
+                    "Unknown XML structure: neither Chapter nor Article found at root level"
+                )
+
+        except ElementTree.ParseError as e:
+            raise ValueError(f"Invalid XML format: {e}")
+
+    @classmethod
+    def parse(cls, xml: str) -> str:
+        """XMLを自動検出してテキストに変換する"""
+        parser_class = cls._detect_parser_type(xml)
+        parser = parser_class(xml)
+        return parser.parse()
+
+
+# # 後方互換性のための関数（既存コードとの互換性を保持）
+# def parse_mainprovision_to_text(xml: str) -> str:
+#     """MainProvisionを処理する（後方互換性のため）"""
+#     return LawXmlParser.parse(xml)
+
+
+# def parse_mainprovision_to_text_v2(xml: str) -> str:
+#     """MainProvisionを処理する（後方互換性のため）"""
+#     return LawXmlParser.parse(xml)
+
+
 def parse_supplprovision_to_text(xml_string: str):
+    """SupplProvisionのxmlを処理する(Paragraph->ParagraphCaption, ParagraphNum, Sentence)"""
     root = ElementTree.fromstring(xml_string)
     output = []
 
@@ -234,3 +532,19 @@ def parse_supplprovision_to_text(xml_string: str):
         output.append(line)
 
     return "\n".join(output)
+
+
+def convert_xml_to_text(xml_string: str) -> str:
+    """
+    通常の法令(Chapter始まり)と，施行規則(Article始まり)の二つに対応
+    """
+    law_text = extract_sections_from_xml(xml_string)
+    if law_text["TOC"] is not None:
+        toc_text = parse_toc_to_text(law_text["TOC"])
+    main_text = LawXmlParser.parse(law_text["MainProvision"])
+    suppl_text = parse_supplprovision_to_text(law_text["SupplProvision"][0])
+    if law_text["TOC"] is not None:
+        law_text = toc_text + main_text + suppl_text
+        return law_text
+    law_text = main_text + suppl_text
+    return law_text
