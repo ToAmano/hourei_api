@@ -1,3 +1,10 @@
+"""
+eGovのAPI v2を利用して，法令を取得するコード
+"""
+
+# TODO :: APIのラッパーと，xmlのパーサーの二つでファイルを分割する
+# TODO :: パーサーは，textのパーサーとyamlのパーサー
+
 from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Dict, List, Literal, Optional, Type
@@ -459,6 +466,7 @@ def parse_supplprovision_to_text(xml_string: str):
 def convert_xml_to_text(xml_string: str) -> str:
     """
     通常の法令(Chapter始まり)と，施行規則(Article始まり)の二つに対応
+    #TODO:: TOCのパターンの処理はもう少しスマートにできない？
     """
     law_text = extract_sections_from_xml(xml_string)
     if law_text["TOC"] is not None:
