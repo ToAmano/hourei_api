@@ -68,7 +68,7 @@ def save_xml_string_to_file(xml_string: str, filename: str):
         f.write(xml_string)
 
 
-def extract_sections_from_xml(xml_string: str) -> Dict["str", Optional["str"]]:
+def extract_sections_from_xml(xml_string: str) -> Dict[str, str | None | list[str]]:
     """TOC, MainProvision,SupplProvisionの3つを取得"""
     # tree = ElementTree.parse(xml_file_path)
     # root = tree.getroot()
@@ -115,8 +115,11 @@ def extract_sections_from_xml(xml_string: str) -> Dict["str", Optional["str"]]:
     }
 
 
-def parse_toc_to_text(toc_xml: str) -> str:
+def parse_toc_to_text(toc_xml: str | None) -> str:
     """XML文字列をパース"""
+    if toc_xml is None:
+        return ""
+
     toc_elem = ElementTree.fromstring(toc_xml)
 
     # 出力用リスト
@@ -274,16 +277,32 @@ class BaseLawParser(ABC):
                 self._add_line(sentence_text)
 
     def _extract_sentence_text(self, sentence) -> str:
-        """文要素からテキストを抽出する"""
-        parts = []
+        """文要素からテキストを抽出（ルビ対応）"""
 
-        for elem in sentence.iter():
-            if elem.tag == "Ruby":
-                parts.append(self._get_ruby_text(elem))
-            elif elem.text:
-                parts.append(elem.text)
+        def process_element(elem):
+            """要素を再帰的に処理してテキストを抽出"""
+            text_parts = []
 
-        return "".join(parts).strip()
+            # 要素のテキスト（開始タグ直後のテキスト）
+            if elem.text:
+                text_parts.append(elem.text)
+
+            # 子要素を処理
+            for child in elem:
+                if child.tag == "Ruby":
+                    # Ruby要素の場合は特別処理
+                    text_parts.append(self._get_ruby_text(child))
+                else:
+                    # その他の子要素は再帰処理
+                    text_parts.append(process_element(child))
+
+                # 子要素の後のテキスト（tail）
+                if child.tail:
+                    text_parts.append(child.tail)
+
+            return "".join(text_parts)
+
+        return process_element(sentence).strip()
 
     def _get_ruby_text(self, element) -> str:
         """ルビ要素を処理する: <Ruby>漢字<Rt>読み</Rt></Ruby> → 漢字（読み）"""
