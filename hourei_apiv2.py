@@ -68,6 +68,13 @@ def get_lawdata_from_law_id(law_id: str, output_type: Literal["xml", "list"]):
     raise ValueError(f"Supported output type is xml or list. Got {output_type}")
 
 
+def get_lawdata_from_lawname(law_name: str) -> str:
+    """法令名から法令データを取得(完全一致のみ)"""
+    law_id: str = get_lawid_from_lawtitle(law_name, if_exact=True)
+    law_text: str = get_lawdata_from_law_id(law_id, "xml")
+    return law_text
+
+
 def save_xml_string_to_file(xml_string: str, filename: str):
     """save xml string to a file"""
     with open(filename, "w", encoding="utf-8") as f:
