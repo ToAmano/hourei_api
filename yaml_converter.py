@@ -170,7 +170,14 @@ class LawToYamlConverter:
             self.yaml_data["articles"] = articles
 
     def _process_chapter(self, chapter) -> Dict[str, Any]:
-        """章を処理"""
+        """章を処理
+        章の構造がいくつかある．
+        Chapter -> Section -> Subsection -> Article
+        という構造がおそらく一番詳しく，そのほかに
+        Chapter -> Article
+        Chapter -> Section -> Article
+        という構造もある．
+        """
         chapter_data = {}
 
         chapter_title = chapter.findtext("ChapterTitle")
@@ -214,7 +221,17 @@ class LawToYamlConverter:
             if section_num:
                 section_data["section_num"] = section_num
 
-        # 節の下の条を処理
+        # 節の下のSubsectionを処理
+        subsections = []
+        for subsection in section.findall("Subsection"):
+            subsection_data = self._process_subsection(subsection)
+            if subsection_data:
+                subsections.append(subsection_data)
+
+        if subsections:
+            section_data["subsections"] = subsections
+
+        # 節の下の条を処理（subsectionがない場合）
         articles = []
         for article in section.findall("Article"):
             article_data = self._process_article(article)
@@ -225,6 +242,30 @@ class LawToYamlConverter:
             section_data["articles"] = articles
 
         return section_data
+
+    def _process_subsection(self, subsection) -> Dict[str, Any]:
+        """subsectionを処理"""
+        subsection_data = {}
+
+        # subsectionのタイトル
+        subsection_title = subsection.findtext("SubsectionTitle")
+        if subsection_title:
+            subsection_data["title"] = subsection_title.strip()
+            subsection_num = self._extract_number_from_title(subsection_title)
+            if subsection_num:
+                subsection_data["article_num"] = subsection_num
+
+        # 節の下の条を処理（subsectionがない場合）
+        articles = []
+        for article in subsection.findall("Article"):
+            article_data = self._process_article(article)
+            if article_data:
+                articles.append(article_data)
+
+        if articles:
+            subsection_data["articles"] = articles
+
+        return subsection_data
 
     def _process_article(self, article) -> Dict[str, Any]:
         """条を処理"""
