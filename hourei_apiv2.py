@@ -188,7 +188,21 @@ class BaseLawParser(ABC):
             self._add_line(section_title)
             self._add_blank_line()
 
-        for article in section.findall("Article"):
+        # Chapter直下の全ての子要素を順番通りに処理
+        for child in section:
+            if child.tag == "Subsection":
+                self._process_subsection(child)
+            elif child.tag == "Article":
+                self._process_article(child)
+
+    def _process_subsection(self, subsection) -> None:
+        """節を処理する"""
+        subsection_title = subsection.findtext("SubsectionTitle")
+        if subsection_title:
+            self._add_line(subsection_title)
+            self._add_blank_line()
+
+        for article in subsection.findall("Article"):
             self._process_article(article)
 
     def _process_article(self, article) -> None:
