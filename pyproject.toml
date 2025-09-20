@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egov-hourei-api-util"
+version = "0.1.0"
+description = "e-Gov法令検索の法令API v2を利用して法令データを取得し、テキスト形式およびYAML形式に変換するためのPythonツール群です。"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+  { name = "ToAmano", email = "amanotomohito040@gmail.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Text Processing :: Markup :: XML",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "requests",
+]
+
+[project.optional-dependencies]
+llm = [
+    "langchain>=0.1",
+    "langchain-openai>=0.1",
+    "langgraph>=0.0.30",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/toamano/hourei_api"
+"Bug Tracker" = "https://github.com/toamano/hourei_api/issues"
