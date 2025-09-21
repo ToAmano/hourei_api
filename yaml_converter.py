@@ -588,6 +588,28 @@ class LawToYamlConverter:
         if kanji in kanji_map:
             return kanji_map[kanji]
 
+        # 百の位の処理
+        if "百" in kanji:
+            if kanji == "百":
+                return 100
+            elif kanji.startswith("百"):
+                # 百〇〇の形
+                remaining = kanji[1:]
+                remaining_value = self._convert_kanji_to_number(remaining) or 0
+                return 100 + remaining_value
+            elif kanji.endswith("百"):
+                # 〇百の形
+                left_part = kanji[:-1]
+                left_value = kanji_map.get(left_part, 1) if left_part else 1
+                return left_value * 100
+            else:
+                # 〇百〇〇の形
+                parts = kanji.split("百")
+                if len(parts) == 2:
+                    left_value = kanji_map.get(parts[0], 1) if parts[0] else 1
+                    right_value = self._convert_kanji_to_number(parts[1]) or 0
+                    return left_value * 100 + right_value
+
         # 十の位の処理（簡易版）
         if "十" in kanji:
             if kanji == "十":
