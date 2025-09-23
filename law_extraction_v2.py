@@ -140,9 +140,8 @@ class YamlArticleExtractor:
                         if "sections" in chapter:
                             for section in chapter["sections"]:
                                 # section直下がsubsectionの場合
-                                if "subsections" in chapter:
+                                if "subsections" in section:
                                     for subsection in section["subsections"]:
-                                        # section直下がarticleの場合
                                         if "articles" in subsection:
                                             for article in subsection["articles"]:
                                                 if (
@@ -190,6 +189,7 @@ class YamlArticleExtractor:
                 if article.get("article_num") == article_num:
                     return article
 
+        logger.warning("yaml構造にparts,chapters,articlesが存在しません．")
         return None
 
     def _extract_full_article_text(self, article: Dict[str, Any]) -> str:
