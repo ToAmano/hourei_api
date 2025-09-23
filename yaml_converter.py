@@ -36,7 +36,7 @@ class LawToYamlConverter:
 
     def to_yaml_string(self) -> str:
         """YAML文字列として出力
-
+        self.yaml_dataをyaml.dumpでyaml形式に変換する
         Returns:
             YAML形式の文字列
         """
@@ -140,10 +140,27 @@ class LawToYamlConverter:
             return
 
         # Chapter構造かArticle構造かを判定
-        if main_provision.find("Chapter") is not None:
+        if main_provision.find("Part") is not None:
+            self._process_part_structure(main_provision)
+        elif main_provision.find("Chapter") is not None:
             self._process_chapter_structure(main_provision)
         elif main_provision.find("Article") is not None:
             self._process_article_structure(main_provision)
+        else:
+            raise ValueError(
+                "Unknown XML structure: neither Chapter nor Article found at root level"
+            )
+
+    def _process_part_structure(self, main_provision) -> None:
+        """Part構造の本則を処理"""
+        parts = []
+        for part in main_provision.findall("Part"):
+            part_data = self._process_part(part)
+            if part_data:
+                parts.append(part_data)
+
+        if parts:
+            self.yaml_data["parts"] = parts
 
     def _process_chapter_structure(self, main_provision) -> None:
         """Chapter構造の本則を処理"""
@@ -169,6 +186,46 @@ class LawToYamlConverter:
         if articles:
             self.yaml_data["articles"] = articles
 
+    def _process_part(self, chapter) -> Dict[str, Any]:
+        """編(Part)を処理
+        編の構造がいくつかある．
+        Part -> Chapter -> Section -> Subsection -> Article
+        という構造がおそらく一番詳しく，そのほかに
+        Part -> Article
+        という構造もある．
+        """
+        part_data = {}
+
+        part_title = chapter.findtext("PartTitle")
+        if part_title:
+            part_data["title"] = part_title.strip()
+            # 章番号を抽出（第X章の形式）
+            part_num = self._extract_number_from_title(part_title)
+            if part_num:
+                part_data["part_num"] = part_num
+
+        # 編の下の章を処理
+        chapters = []
+        for chapter in chapter.findall("Chapter"):
+            section_data = self._process_chapter(chapter)
+            if section_data:
+                chapters.append(section_data)
+
+        if chapters:
+            part_data["chapters"] = chapters
+
+        # 章の直下の条を処理（編がない場合）
+        articles = []
+        for article in chapter.findall("Article"):
+            article_data = self._process_article(article)
+            if article_data:
+                articles.append(article_data)
+
+        if articles:
+            part_data["articles"] = articles
+
+        return part_data
+
     def _process_chapter(self, chapter) -> Dict[str, Any]:
         """章を処理
         章の構造がいくつかある．
@@ -177,6 +234,16 @@ class LawToYamlConverter:
         Chapter -> Article
         Chapter -> Section -> Article
         という構造もある．
+
+        TODO:: text_converterのように，子要素を順番通りに処理したい．
+        現状だと，Sectionごと，Articleごとに処理されるのでyamlの順番が前後してしまう．
+        # Chapter直下の全ての子要素を順番通りに処理
+            for child in chapter:
+                if child.tag == "Section":
+                    self._process_section(child)
+                elif child.tag == "Article":
+                    self._process_article(child)
+
         """
         chapter_data = {}
 
