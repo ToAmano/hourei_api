@@ -347,9 +347,11 @@ class LawToYamlConverter:
         article_title = article.findtext("ArticleTitle")
         if article_title:
             article_data["title"] = article_title.strip()
-            article_num = self._extract_number_from_title(article_title)
-            if article_num:
-                article_data["article_num"] = article_num
+
+        # 条のタグ(article_num)
+        article_num = article.get("Num")
+        if article_num:
+            article_data["article_num"] = article_num
 
         # 項を処理
         paragraphs = []
