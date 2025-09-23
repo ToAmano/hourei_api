@@ -500,6 +500,7 @@ class RegulationExtractor(BaseExtractor):
         base_context = flatten_state(state)
         special_context = {
             "law_name": state["law_document"].name,
+            "law_article": ", ".join(state["target_articles"]),
             "extracted_law_content": state["extracted_law_content"],
             "regulation_text": state["regulation_document"].content,
         }

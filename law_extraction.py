@@ -76,6 +76,7 @@ class GraphState(TypedDict):
     current_stage: ProcessingStage  # 現在の処理段階
     error_message: Optional[str]  # エラーメッセージ
     metadata: Dict[str, Any]  # 処理メタデータ
+    application_item: Optional[str]  # 申請項目
 
 
 def flatten_state(state: GraphState) -> dict[str, str]:
