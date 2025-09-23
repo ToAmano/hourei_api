@@ -3,7 +3,7 @@ YAMLパーサを利用する場合のlanggraphコード
 
 # TODO :: law_extraction.pyとかぶっているGraphBuilderなどのリファクタリング
 # TODO :: YAMLArticleExtractorとRegulationExtractorも共通部分が多いのでまとめられないか検討
-# TODO ::
+# TODO :: YamlArticleExtractorはyaml_converterと密接に繋がっているので，場所を移動する．
 """
 
 import logging
@@ -29,6 +29,7 @@ from law_extraction import (  # RegulationExtractor,
     ProcessingStage,
     PromptManager,
     ViewpointGenerator,
+    flatten_state,
 )
 
 logger = logging.getLogger(__name__)
@@ -348,14 +349,16 @@ class LawExtractor(BaseExtractor):
         logger.info("LLMによる関連条文番号の特定を開始")
 
         # プロンプトテンプレートを読み込み
-        # TODO :: テンプレートを変更できるように外部から投入できるようにする
-        prompt_template = self.prompt_manager.load_prompt(
-            "identify_relevant_articles_v001"
-        )
-        formatted_prompt = prompt_template.format(
-            law_name=state["law_document"].name,
-            law_article=", ".join(state["target_articles"]),
-            law_text=state["law_document"].content,
+        base_context = flatten_state(state)
+        special_context = {
+            "law_name": state["law_document"].name,
+            "law_article": ", ".join(state["target_articles"]),
+            "law_text": state["law_document"].content,
+        }
+
+        formatted_prompt = self.prompt_manager.render_prompt(
+            self.prompt_name,
+            context={**base_context, **special_context},
         )
 
         # Structured outputでLLMを呼び出し
@@ -494,13 +497,15 @@ class RegulationExtractor(BaseExtractor):
         logger.info("LLMによる施行規則の関連条文番号の特定を開始")
 
         # プロンプトテンプレートを読み込み
-        prompt_template = self.prompt_manager.load_prompt(
-            "identify_relevant_regulation_articles_v001"
-        )
-        formatted_prompt = prompt_template.format(
-            law_name=state["law_document"].name,
-            extracted_law_content=state["extracted_law_content"],
-            regulation_text=state["regulation_document"].content,
+        base_context = flatten_state(state)
+        special_context = {
+            "law_name": state["law_document"].name,
+            "extracted_law_content": state["extracted_law_content"],
+            "regulation_text": state["regulation_document"].content,
+        }
+        formatted_prompt = self.prompt_manager.render_prompt(
+            self.prompt_name,
+            context={**base_context, **special_context},
         )
 
         # Structured outputでLLMを呼び出し
@@ -554,14 +559,35 @@ class RegulationExtractor(BaseExtractor):
 class GraphBuilder:
     """法令要点抽出のグラフビルダー(yaml対応版)"""
 
-    def __init__(self, llm: BaseLLM, prompts_dir: Path = Path("prompts")):
+    # 各LLM呼び出しのプロンプト名
+    DEFAULT_PROMPT_NAMES = {
+        "extract_law": "extract_laws_v001",
+        "extract_regulation": "extract_regulation_v001",
+        "generate_summary": "v003",
+    }
+
+    def __init__(
+        self,
+        llm: BaseLLM,
+        prompts_dir: Path = Path("prompts"),
+        prompt_names: Optional[Dict[str, str]] = None,
+    ):
         self.llm = llm
         self.prompt_manager = PromptManager(prompts_dir)
 
+        # デフォルトとユーザ指定をマージ（ユーザ指定が優先）
+        self.prompt_names = {**self.DEFAULT_PROMPT_NAMES, **(prompt_names or {})}
+
         # 各抽出器の初期化
-        self.law_extractor = LawExtractor(llm, self.prompt_manager)
-        self.regulation_extractor = RegulationExtractor(llm, self.prompt_manager)
-        self.summary_generator = ViewpointGenerator(llm, self.prompt_manager)
+        self.law_extractor = LawExtractor(
+            llm, self.prompt_manager, self.prompt_names["extract_law"]
+        )
+        self.regulation_extractor = RegulationExtractor(
+            llm, self.prompt_manager, self.prompt_names["extract_regulation"]
+        )
+        self.summary_generator = ViewpointGenerator(
+            llm, self.prompt_manager, self.prompt_names["generate_summary"]
+        )
 
         # グラフの構築
         self.graph = self._build_graph()
@@ -695,11 +721,15 @@ class LegalExtractionConfig:
         self,
         llm,
         prompts_dir: str = "prompts",
+        prompt_names: Optional[Dict[str, str]] = None,
     ):
         self.llm = llm
         self.prompts_dir = Path(prompts_dir)
+        self.prompt_names = prompt_names
 
 
 def create_legal_extraction_system(config: LegalExtractionConfig) -> GraphBuilder:
     """法令要点抽出システムのファクトリー関数"""
-    return GraphBuilder(llm=config.llm, prompts_dir=config.prompts_dir)
+    return GraphBuilder(
+        llm=config.llm, prompts_dir=config.prompts_dir, prompt_names=config.prompt_names
+    )
