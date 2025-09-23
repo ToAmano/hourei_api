@@ -64,6 +64,20 @@ class BaseLawParser(ABC):
         """トップレベル要素を処理する（子クラスで実装）"""
         pass
 
+    def _process_chapter(self, chapter) -> None:
+        """章を処理する"""
+        chapter_title = chapter.findtext("ChapterTitle")
+        if chapter_title:
+            self._add_line(chapter_title)
+            self._add_blank_line()
+
+        # Chapter直下の全ての子要素を順番通りに処理
+        for child in chapter:
+            if child.tag == "Section":
+                self._process_section(child)
+            elif child.tag == "Article":
+                self._process_article(child)
+
     def _process_section(self, section) -> None:
         """節を処理する"""
         section_title = section.findtext("SectionTitle")
@@ -249,6 +263,31 @@ class BaseLawParser(ABC):
         self.lines.append("")
 
 
+class PartBasedParser(BaseLawParser):
+    """Part構造の法令XMLパーサー"""
+
+    def _process_top_level_elements(self) -> None:
+        """Chapterから処理を開始する"""
+        for part in self.root.findall("Part"):
+            self._process_part(part)
+
+    def _process_part(self, part) -> None:
+        """編(part)を処理する"""
+        part_title = part.findtext("PartTitle")
+        if part_title:
+            self._add_line(part_title)
+            self._add_blank_line()
+
+        # Chapter直下の全ての子要素を順番通りに処理
+        for child in part:
+            if child.tag == "Chapter":
+                self._process_chapter(child)
+            if child.tag == "Section":
+                self._process_section(child)
+            elif child.tag == "Article":
+                self._process_article(child)
+
+
 class ChapterBasedParser(BaseLawParser):
     """Chapter構造の法令XMLパーサー"""
 
@@ -256,20 +295,6 @@ class ChapterBasedParser(BaseLawParser):
         """Chapterから処理を開始する"""
         for chapter in self.root.findall("Chapter"):
             self._process_chapter(chapter)
-
-    def _process_chapter(self, chapter) -> None:
-        """章を処理する"""
-        chapter_title = chapter.findtext("ChapterTitle")
-        if chapter_title:
-            self._add_line(chapter_title)
-            self._add_blank_line()
-
-        # Chapter直下の全ての子要素を順番通りに処理
-        for child in chapter:
-            if child.tag == "Section":
-                self._process_section(child)
-            elif child.tag == "Article":
-                self._process_article(child)
 
 
 class ArticleBasedParser(BaseLawParser):
@@ -301,8 +326,11 @@ class LawXmlParser:
         try:
             root = ElementTree.fromstring(xml)
 
+            # Part要素があるかチェック
+            if root.find("Part") is not None:
+                return PartBasedParser
             # Chapter要素があるかチェック
-            if root.find("Chapter") is not None:
+            elif root.find("Chapter") is not None:
                 return ChapterBasedParser
             # Article要素があるかチェック
             elif root.find("Article") is not None:
