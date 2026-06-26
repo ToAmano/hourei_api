@@ -1,0 +1,85 @@
+name: Auto Release on Version Bump
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  autorelease:
+    name: Check version and create release
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.check_tag.outputs.exists }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags
+
+      - name: Get current version
+        id: get_version
+        run: |
+          VERSION=$(python -c "
+          with open('pyproject.toml') as f:
+              for line in f:
+                  if line.strip().startswith('version'):
+                      print(line.split('=')[1].strip().strip('\"\' '))
+                      break
+          ")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          TAG_NAME="v${{ env.VERSION }}"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists. Skipping release."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG_NAME does not exist. A new release will be created."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        id: create_release
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="v${{ env.VERSION }}"
+          echo "Creating release for $TAG_NAME..."
+          gh release create "$TAG_NAME" \
+            --title "$TAG_NAME" \
+            --generate-notes
+
+  publish:
+    name: Build & Publish to PyPI
+    needs: autorelease
+    if: needs.autorelease.outputs.release_created == 'false'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/egov-hourei-api-util
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install build dependencies
+        run: pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
