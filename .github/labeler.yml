@@ -1,0 +1,12 @@
+Python:
+  - changed-files:
+      - any-glob-to-any-file: src/elaws_parser/**/*
+Docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+CI:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - ".pre-commit-config.yaml"
