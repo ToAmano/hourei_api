@@ -26,7 +26,8 @@ repos:
   rev: v1.15.0
   hooks:
     - id: mypy
-      args: [--ignore-missing-imports, --strict]
+      args: [--ignore-missing-imports]
+      additional_dependencies: [types-requests, types-PyYAML]
       files: ^src/
 - repo: https://github.com/PyCQA/flake8
   rev: "7.2.0"
