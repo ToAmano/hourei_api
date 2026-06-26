@@ -5,7 +5,7 @@ yaml形式でのxmlからの抽出
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from xml.etree import ElementTree
 
 import yaml
@@ -20,7 +20,7 @@ class LawToYamlConverter:
             xml_string: 法令のXML文字列
         """
         self.root = ElementTree.fromstring(xml_string)
-        self.yaml_data = {}
+        self.yaml_data: Dict[str, Any] = {}
 
     def convert(self) -> Dict[str, Any]:
         """XML(self.root)をYAMLデータ構造に変換
@@ -443,7 +443,7 @@ class LawToYamlConverter:
 
     def _process_subitem(self, subitem, level: int) -> Dict[str, Any]:
         """サブ項目を再帰的に処理"""
-        subitem_data = {}
+        subitem_data: Dict[str, Any] = {}
         subitem_data["level"] = level
 
         # サブ項目のタイトル

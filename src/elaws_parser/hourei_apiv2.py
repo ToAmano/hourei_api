@@ -72,7 +72,8 @@ def get_lawdata_from_law_id(law_id: str, output_type: Literal["xml", "list"]):
 
 def get_lawdata_from_lawname(law_name: str) -> str:
     """法令名から法令データを取得(完全一致のみ)"""
-    law_id: str = get_lawid_from_lawtitle(law_name, if_exact=True)
+    law_id = get_lawid_from_lawtitle(law_name, if_exact=True)
+    assert isinstance(law_id, str)
     law_text: str = get_lawdata_from_law_id(law_id, "xml")
     return law_text
 
