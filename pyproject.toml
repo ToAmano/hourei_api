@@ -32,6 +32,14 @@ llm = [
     "pydantic>=2.0",
     "pyyaml>=6.0",
 ]
+dev = [
+    "pytest",
+    "pre-commit",
+    "black",
+    "isort",
+    "mypy",
+    "flake8",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/toamano/hourei_api"
