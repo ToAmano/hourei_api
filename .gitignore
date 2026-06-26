@@ -1,1 +1,9 @@
 .history
+.env
+__pycache__/
+*.pyc
+src/*.egg-info/
+src/elaws_parser.egg-info/
+src/egov_hourei_api_util.egg-info/
+.mypy_cache/
+data/

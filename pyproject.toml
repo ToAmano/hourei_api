@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "elaws-parser"
-version = "0.1.0"
+dynamic = ["version"]
 description = "e-Gov法令検索の法令API v2を利用して法令データを取得し、テキスト形式およびYAML形式に変換するためのPythonツール群です。"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -45,5 +45,8 @@ dev = [
 "Homepage" = "https://github.com/ToAmano/elaws-parser"
 "Bug Tracker" = "https://github.com/ToAmano/elaws-parser/issues"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/elaws_parser"]
+
+[tool.hatch.version]
+path = "src/elaws_parser/__init__.py"
