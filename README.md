@@ -13,10 +13,18 @@
 
 ```
 .
-├── hourei_apiv2.py         # eGov法令API v2クライアント
-├── text_converter.py       # XMLからTextへのコンバーター
-├── yaml_converter.py       # XMLからYAMLへのコンバーター
+├── pyproject.toml          # ビルド設定
 ├── requirements.txt        # 依存ライブラリ
+├── src/
+│   └── hourei_api/         # パッケージソース
+│       ├── __init__.py     # パッケージエントリーポイント
+│       ├── hourei_apiv2.py # eGov法令API v2クライアント
+│       ├── text_converter.py # XMLからTextへのコンバーター
+│       ├── yaml_converter.py # XMLからYAMLへのコンバーター
+│       ├── law_extraction.py # 法令抽出（ベース）
+│       └── law_extraction_v2.py # 法令抽出（YAML・LangGraph版）
+├── notebooks/              # Jupyter Notebook類
+├── data/                   # サンプル・検証用法令データ (xml, yaml, txt等)
 ```
 
 ## セットアップ
@@ -41,9 +49,14 @@
 法令名（例：「電気事業法」）を指定して、XMLデータを取得し、テキスト形式とYAML形式で保存する基本的な使用例です。
 
 ```python
-from hourei_apiv2 import get_lawid_from_lawtitle, get_lawdata_from_law_id, save_xml_string_to_file, get_lawdata_from_lawname
-from text_converter import convert_xml_to_text
-from yaml_converter import convert_xml_to_yaml
+from hourei_api import (
+    get_lawid_from_lawtitle,
+    get_lawdata_from_law_id,
+    get_lawdata_from_lawname,
+    save_xml_string_to_file,
+    convert_xml_to_text,
+    convert_xml_to_yaml,
+)
 
 # 法令名
 law_title = "電気事業法"

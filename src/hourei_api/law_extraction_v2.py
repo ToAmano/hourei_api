@@ -21,7 +21,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph  # CompiledGraph
 from pydantic import BaseModel, Field
 
-from law_extraction import (  # RegulationExtractor,
+from .law_extraction import (  # RegulationExtractor,
     BaseExtractor,
     ExtractionResult,
     GraphState,
@@ -127,6 +127,7 @@ class YamlArticleExtractor:
 
         # part構造（一部の大規模法令）
         if "parts" in self.yaml_data:
+            print("Part 構造です")
             for part in self.yaml_data["parts"]:
                 if "chapters" in part:
                     for chapter in part["chapters"]:
@@ -158,6 +159,7 @@ class YamlArticleExtractor:
 
         # chapters構造（一般的な法令）
         elif "chapters" in self.yaml_data:
+            print("Chapter 構造です")
             for chapter in self.yaml_data["chapters"]:
                 # 章直下の条文を検索
                 if "articles" in chapter:
@@ -169,7 +171,7 @@ class YamlArticleExtractor:
                 if "sections" in chapter:
                     for section in chapter["sections"]:
                         # section直下がsubsectionの場合
-                        if "subsections" in chapter:
+                        if "subsections" in section:
                             for subsection in section["subsections"]:
                                 # section直下がarticleの場合
                                 if "articles" in subsection:
@@ -185,6 +187,7 @@ class YamlArticleExtractor:
 
         # articles構造（施行規則等）
         elif "articles" in self.yaml_data:
+            print("article 構造です")
             for article in self.yaml_data["articles"]:
                 if article.get("article_num") == article_num:
                     return article
@@ -366,7 +369,7 @@ class LawExtractor(BaseExtractor):
 
         # LLMをstructured outputモードに設定
         structured_llm = self.llm.with_structured_output(RelevantArticles)
-        response = structured_llm.invoke(messages)
+        response: RelevantArticles = structured_llm.invoke(messages)
 
         logger.info(f"特定された関連条文: {response.article_numbers}")
         return response

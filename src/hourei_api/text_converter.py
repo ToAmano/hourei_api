@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import List, Optional, Type
 from xml.etree import ElementTree
 
-from hourei_apiv2 import extract_sections_from_xml
+from .hourei_apiv2 import extract_sections_from_xml
 
 
 def parse_toc_to_text(toc_xml: str | None) -> str:

@@ -36,3 +36,7 @@ llm = [
 [project.urls]
 "Homepage" = "https://github.com/toamano/hourei_api"
 "Bug Tracker" = "https://github.com/toamano/hourei_api/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

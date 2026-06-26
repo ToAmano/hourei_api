@@ -5,6 +5,8 @@ eGovのAPI v2を利用して，法令を取得するコード
 
 # TODO :: パーサーは，textのパーサーとyamlのパーサー
 
+from __future__ import annotations
+
 from functools import lru_cache
 from typing import Dict, Literal
 from xml.etree import ElementTree
