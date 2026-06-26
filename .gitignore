@@ -6,4 +6,7 @@ src/*.egg-info/
 src/elaws_parser.egg-info/
 src/egov_hourei_api_util.egg-info/
 .mypy_cache/
-data/
+data/law.xml
+data/mainprovision.txt
+data/supplprovision.txt
+data/租税特別措置法.*
