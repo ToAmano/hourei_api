@@ -1,4 +1,4 @@
-# eGov法令API v2 ラッパー & 構造化コンバーター
+# e-Gov法令API v2 ラッパー & 構造化コンバーター (`elaws-parser`)
 
 このリポジトリは、[e-Gov法令検索](https://elaws.e-gov.go.jp/)の[法令API v2](https://developer.e-gov.go.jp/contents/law_api_v2_2)を利用して法令データを取得し、人間や機械が扱いやすいテキスト形式およびYAML形式に変換するためのPythonツール群です。
 

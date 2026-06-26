@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/egov-hourei-api-util
+      url: https://pypi.org/p/elaws-parser
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
