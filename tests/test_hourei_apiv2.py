@@ -1,4 +1,3 @@
-import os
 from unittest.mock import Mock, patch
 import pytest
 from elaws_parser.api.hourei_apiv2 import (
@@ -119,7 +118,6 @@ def test_get_lawdata_from_law_id_invalid_type():
 
         with pytest.raises(ValueError, match="Supported output type is xml or list"):
             get_lawdata_from_law_id("12345", "invalid_type")  # type: ignore
-
 
 
 def test_get_lawdata_from_lawname():
