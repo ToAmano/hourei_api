@@ -1,6 +1,6 @@
 Python:
   - changed-files:
-      - any-glob-to-any-file: src/hourei_api/**/*
+      - any-glob-to-any-file: src/elaws_parser/**/*
 Docs:
   - changed-files:
       - any-glob-to-any-file:
