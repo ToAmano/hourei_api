@@ -26,7 +26,12 @@ def parse_toc_to_text(toc_xml: str | None) -> str:
     for chapter in toc_elem.findall("TOCChapter"):
         title = chapter.find("ChapterTitle")
         article_range = chapter.find("ArticleRange")
-        if title is not None and article_range is not None:
+        if (
+            title is not None
+            and title.text is not None
+            and article_range is not None
+            and article_range.text is not None
+        ):
             line = f"{title.text.strip()}{article_range.text.strip()}"
             lines.append(line)
 
@@ -339,7 +344,8 @@ class LawXmlParser:
                 return ArticleBasedParser
             else:
                 raise ValueError(
-                    "Unknown XML structure: neither Chapter nor Article found at root level"
+                    "Unknown XML structure: "
+                    "neither Chapter nor Article found at root level"
                 )
 
         except ElementTree.ParseError as e:
@@ -395,13 +401,28 @@ def convert_xml_to_text(xml_string: str) -> str:
     通常の法令(Chapter始まり)と，施行規則(Article始まり)の二つに対応
     #TODO:: TOCのパターンの処理はもう少しスマートにできない？
     """
-    law_text = extract_sections_from_xml(xml_string)
-    if law_text["TOC"] is not None:
-        toc_text = parse_toc_to_text(law_text["TOC"])
-    main_text = LawXmlParser.parse(law_text["MainProvision"])
-    suppl_text = parse_supplprovision_to_text(law_text["SupplProvision"][0])
-    if law_text["TOC"] is not None:
-        law_text = toc_text + main_text + suppl_text
-        return law_text
-    law_text = main_text + suppl_text
-    return law_text
+    sections = extract_sections_from_xml(xml_string)
+    toc_xml = sections["TOC"]
+    main_xml = sections["MainProvision"]
+    suppl_xml_list = sections["SupplProvision"]
+
+    assert main_xml is not None and isinstance(main_xml, str)
+
+    toc_text = ""
+    if toc_xml is not None:
+        assert isinstance(toc_xml, str)
+        toc_text = parse_toc_to_text(toc_xml)
+
+    main_text = LawXmlParser.parse(main_xml)
+
+    suppl_text = ""
+    if suppl_xml_list is not None:
+        assert isinstance(suppl_xml_list, list)
+        if len(suppl_xml_list) > 0:
+            suppl_xml = suppl_xml_list[0]
+            assert isinstance(suppl_xml, str)
+            suppl_text = parse_supplprovision_to_text(suppl_xml)
+
+    if toc_xml is not None:
+        return toc_text + main_text + suppl_text
+    return main_text + suppl_text

@@ -7,17 +7,11 @@ YAMLパーサを利用する場合のlanggraphコード
 """
 
 import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, TypedDict
+from typing import Any, Dict, List, Optional
 
-import yaml
 from langchain_core.language_models import BaseLLM
-from langchain_core.messages import BaseMessage, SystemMessage
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph  # CompiledGraph
 from pydantic import BaseModel, Field
 
@@ -375,7 +369,7 @@ class LawExtractor(BaseExtractor):
         return response
 
     def _extract_articles_from_yaml(
-        self, law_document: "LegalDocument", article_numbers: List[int]
+        self, law_document: "LegalDocument", article_numbers: List[str]
     ) -> str:
         """YAML構造から指定された条文を抽出"""
         logger.info(f"YAML構造から{len(article_numbers)}件の条文を抽出中")
@@ -411,9 +405,8 @@ class LawExtractor(BaseExtractor):
 
 
 # 使用例とテスト
-def test_law_extractor():
+def test_law_extractor() -> None:
     """LawExtractorのテスト用関数"""
-    from unittest.mock import Mock
 
     # サンプルYAMLデータ
     sample_yaml_data = {
@@ -425,7 +418,7 @@ def test_law_extractor():
                 "paragraphs": [
                     {
                         "paragraph_num": "1",
-                        "content": "都道府県知事は、有害物質使用特定施設の使用が廃止されたときは、当該有害物質使用特定施設に係る工場又は事業場の敷地であった土地について、土壌汚染状況調査を行わせるものとする。",
+                        "content": "都道府県知事は、有害物質使用特定施設の使用が廃止されたときは、当該有害物質使用特定施設に係る工場又は事業場の敷地であった土地について、土壌汚染状況調査を行わせるものとする。",  # noqa: E501
                         "items": [
                             {
                                 "item_num": 1,
@@ -442,24 +435,16 @@ def test_law_extractor():
                 "paragraphs": [
                     {
                         "paragraph_num": "1",
-                        "content": "都道府県知事は、土壌汚染により人の健康に係る被害が生ずるおそれがあるものとして環境省令で定める基準に該当する土地があると認めるときは、当該土地の所有者等に対し、土壌汚染状況調査を行うべきことを命ずることができる。",
+                        "content": "都道府県知事は、土壌汚染により人の健康に係る被害が生ずるおそれがあるものとして環境省令で定める基準に該当する土地があると認めるときは、当該土地の所有者等に対し、土壌汚染状況調査を行うべきことを命ずることができる。",  # noqa: E501
                     }
                 ],
             },
         ],
     }
 
-    # LegalDocumentを作成
-    law_document = LegalDocument(
-        name="土壌汚染対策法",
-        content="法令の本文テキスト...",
-        document_type="law",
-        yaml_data=sample_yaml_data,
-    )
-
     # YamlArticleExtractorの動作テスト
     extractor = YamlArticleExtractor(sample_yaml_data)
-    extracted = extractor.extract_articles_by_numbers([3, 4])
+    extracted = extractor.extract_articles_by_numbers(["3", "4"])
 
     print("=== 条文抽出テスト結果 ===")
     for article in extracted:
@@ -523,7 +508,7 @@ class RegulationExtractor(BaseExtractor):
         return response
 
     def _extract_articles_from_yaml(
-        self, regulation_document: "LegalDocument", article_numbers: List[int]
+        self, regulation_document: "LegalDocument", article_numbers: List[str]
     ) -> str:
         """YAML構造から指定された条文を抽出"""
         logger.info(f"施行規則のYAML構造から{len(article_numbers)}件の条文を抽出中")
@@ -709,6 +694,7 @@ class GraphBuilder:
             current_stage=ProcessingStage.LAW_EXTRACTION,
             error_message=None,
             metadata={},
+            application_item=None,
         )
 
         logger.info("法令判断軸抽出処理を開始します")

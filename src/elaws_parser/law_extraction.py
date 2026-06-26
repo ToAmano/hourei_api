@@ -9,7 +9,6 @@ import yaml
 from langchain_core.language_models import BaseLLM
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph  # CompiledGraph
 from pydantic import BaseModel, Field
 
@@ -233,7 +232,9 @@ class ViewpointGenerator(BaseExtractor):
     """最終判断軸生成"""
 
     def extract(self, state: GraphState) -> ExtractionResult:
-        """抽出した法令(state[extracted_law_content],state[extracted_regulation_content])を利用して，最終的な要点を生成"""
+        """抽出した法令(state[extracted_law_content],state[extracted_regulation_content])
+        を利用して，最終的な要点を生成
+        """
         logger.info("最終的な判断軸生成を開始")
 
         # プロンプトの読み込み
@@ -399,12 +400,15 @@ class GraphBuilder:
             law_document=law_document,
             regulation_document=regulation_document,
             target_articles=target_articles,
+            extracted_law_article_numbers=None,
+            extracted_regulation_article_numbers=None,
             extracted_law_content=None,
             extracted_regulation_content=None,
             final_summary=None,
             current_stage=ProcessingStage.LAW_EXTRACTION,
             error_message=None,
             metadata={},
+            application_item=None,
         )
 
         logger.info("法令判断軸抽出処理を開始します")
