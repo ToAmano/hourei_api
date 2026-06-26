@@ -44,3 +44,6 @@ dev = [
 [project.urls]
 "Homepage" = "https://github.com/ToAmano/elaws-parser"
 "Bug Tracker" = "https://github.com/ToAmano/elaws-parser/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
