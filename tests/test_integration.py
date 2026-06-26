@@ -40,7 +40,6 @@ def test_api_to_parser_integration():
     assert isinstance(actual_text, str)
     assert len(actual_text) > 100
 
-
     # 4. YAMLへのパースと検証
     actual_yaml_str = convert_xml_to_yaml(raw_xml)
     assert isinstance(actual_yaml_str, str)
